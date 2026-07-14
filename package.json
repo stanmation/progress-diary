@@ -18,6 +18,7 @@
   "license": "ISC",
   "description": "A React Native progress tracking application built with TypeScript",
   "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~54.0.0",
     "expo-image-picker": "~17.0.11",
     "expo-status-bar": "~3.0.9",

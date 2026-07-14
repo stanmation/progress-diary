@@ -65,7 +65,7 @@ export default function DiaryPhotosTimeline({
                     <View style={styles.photoInfo}>
                       <Text style={styles.photoTitle}>{photo.entryTitle}</Text>
                       <Text style={styles.photoDate}>
-                        {new Date(photo.selectedAt).toLocaleString()}
+                        {new Date(photo.createdAt ?? photo.selectedAt).toLocaleString()}
                       </Text>
                       <Text style={styles.photoDate}>{photo.entryDate}</Text>
                     </View>

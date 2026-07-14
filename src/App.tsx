@@ -1,8 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useEffect, useMemo, useState } from 'react';
 import DiaryDetails from './DiaryDetails';
 import DiaryList from './DiaryList';
 import DiaryPhotosTimeline from './DiaryPhotosTimeline';
 import type { DiaryEntry, DiaryPhoto } from './types';
+
+const STORAGE_KEY = '@progress_diary_entries';
 
 const initialEntries: DiaryEntry[] = [
   {
@@ -20,11 +23,43 @@ export default function App() {
   const [entries, setEntries] = useState<DiaryEntry[]>(initialEntries);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [currentScreen, setCurrentScreen] = useState<Screen>('list');
+  const [isReady, setIsReady] = useState(false);
 
   const selectedEntry = useMemo(
     () => entries.find((entry) => entry.id === selectedId) ?? null,
     [entries, selectedId]
   );
+
+  useEffect(() => {
+    const loadEntries = async () => {
+      try {
+        const saved = await AsyncStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed: DiaryEntry[] = JSON.parse(saved);
+          setEntries(parsed);
+        }
+      } catch (error) {
+        console.warn('Failed to load saved entries', error);
+      } finally {
+        setIsReady(true);
+      }
+    };
+
+    loadEntries();
+  }, []);
+
+  useEffect(() => {
+    const persistEntries = async () => {
+      if (!isReady) return;
+      try {
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+      } catch (error) {
+        console.warn('Failed to save entries', error);
+      }
+    };
+
+    persistEntries();
+  }, [entries, isReady]);
 
   const addEntry = () => {
     const nextId = String(Date.now());
@@ -33,6 +68,7 @@ export default function App() {
       title: `New diary entry`,
       date: new Date().toLocaleDateString(),
       content: 'This is a new diary entry. Tap back to return to the list.',
+      photos: [],
     };
     setEntries([newEntry, ...entries]);
     setSelectedId(nextId);

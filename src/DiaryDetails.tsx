@@ -93,7 +93,7 @@ export default function DiaryDetails({ entry, onBack, onPhotoSelect }: DiaryDeta
                         Photo selected
                       </Text>
                       <Text style={styles.photoDate}>
-                        {new Date(photo.selectedAt).toLocaleString()}
+                        {new Date(photo.createdAt ?? photo.selectedAt).toLocaleString()}
                       </Text>
                       {photo.fileName ? (
                         <Text style={styles.fileMeta}>{photo.fileName}</Text>
