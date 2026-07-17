@@ -6,6 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import type { DiaryEntry } from './types';
 
 type DiaryListProps = {
@@ -13,9 +14,10 @@ type DiaryListProps = {
   onSelect: (id: string) => void;
   onAdd: () => void;
   onTimelinePress: () => void;
+  onDelete: (id: string) => void;
 };
 
-export default function DiaryList({ entries, onSelect, onAdd, onTimelinePress }: DiaryListProps) {
+export default function DiaryList({ entries, onSelect, onAdd, onTimelinePress, onDelete }: DiaryListProps) {
   const hasPhotos = entries.some((entry) => (entry.photos?.length ?? 0) > 0);
 
   return (
@@ -36,17 +38,30 @@ export default function DiaryList({ entries, onSelect, onAdd, onTimelinePress }:
 
       <ScrollView contentContainerStyle={styles.listContainer}>
         {entries.map((entry) => (
-          <Pressable
+          <Swipeable
             key={entry.id}
-            onPress={() => onSelect(entry.id)}
-            style={styles.listItem}
+            renderRightActions={() => (
+              <View style={styles.rightActionContainer}>
+                <Pressable
+                  style={styles.deleteButton}
+                  onPress={() => onDelete(entry.id)}
+                >
+                  <Text style={styles.deleteButtonText}>Delete</Text>
+                </Pressable>
+              </View>
+            )}
           >
-            <Text style={styles.itemTitle}>{entry.title}</Text>
-            <Text style={styles.itemDate}>{entry.date}</Text>
-            <Text numberOfLines={2} style={styles.itemContent}>
-              {entry.content}
-            </Text>
-          </Pressable>
+            <Pressable
+              onPress={() => onSelect(entry.id)}
+              style={styles.listItem}
+            >
+              <Text style={styles.itemTitle}>{entry.title}</Text>
+              <Text style={styles.itemDate}>{entry.date}</Text>
+              <Text numberOfLines={2} style={styles.itemContent}>
+                {entry.content}
+              </Text>
+            </Pressable>
+          </Swipeable>
         ))}
       </ScrollView>
     </View>
@@ -140,5 +155,21 @@ const styles = StyleSheet.create({
     color: '#4b5563',
     fontSize: 15,
     lineHeight: 22,
+  },
+  rightActionContainer: {
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    paddingRight: 12,
+    marginBottom: 14,
+  },
+  deleteButton: {
+    backgroundColor: '#ff4d4f',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontWeight: '700',
   },
 });

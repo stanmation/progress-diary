@@ -89,6 +89,14 @@ export default function App() {
     setCurrentScreen('timeline');
   };
 
+  const handleDeleteEntry = (id: string) => {
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+    if (selectedId === id) {
+      setSelectedId(null);
+      setCurrentScreen('list');
+    }
+  };
+
   const handlePhotoSelect = (photo: DiaryPhoto) => {
     setEntries((prevEntries) =>
       prevEntries.map((entry) =>
@@ -97,6 +105,10 @@ export default function App() {
           : entry
       )
     );
+  };
+
+  const handleRenameEntry = (id: string, newTitle: string) => {
+    setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, title: newTitle } : e)));
   };
 
   if (currentScreen === 'timeline') {
@@ -114,6 +126,7 @@ export default function App() {
         entry={selectedEntry}
         onBack={goBackToList}
         onPhotoSelect={handlePhotoSelect}
+        onRename={handleRenameEntry}
       />
     );
   }
@@ -124,6 +137,7 @@ export default function App() {
       onSelect={goToDetails}
       onAdd={addEntry}
       onTimelinePress={goToTimeline}
+      onDelete={handleDeleteEntry}
     />
   );
 }

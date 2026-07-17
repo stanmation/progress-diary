@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View, TextInput } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import type { DiaryEntry, DiaryPhoto } from './types';
 
@@ -7,10 +7,17 @@ type DiaryDetailsProps = {
   entry: DiaryEntry;
   onBack: () => void;
   onPhotoSelect?: (photo: DiaryPhoto) => void;
+  onRename?: (id: string, newTitle: string) => void;
+  lastSavedAt?: string | null;
 };
 
-export default function DiaryDetails({ entry, onBack, onPhotoSelect }: DiaryDetailsProps) {
+export default function DiaryDetails({ entry, onBack, onPhotoSelect, onRename, lastSavedAt }: DiaryDetailsProps) {
   const [hasPhotoPermission, setHasPhotoPermission] = useState<boolean | null>(null);
+  const [title, setTitle] = useState(entry.title);
+
+  useEffect(() => {
+    setTitle(entry.title);
+  }, [entry.title]);
 
   const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -59,9 +66,32 @@ export default function DiaryDetails({ entry, onBack, onPhotoSelect }: DiaryDeta
           <Text style={styles.backButtonText}>Back</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Timeline</Text>
-        <Pressable onPress={pickImage} style={styles.photoButton}>
-          <Text style={styles.photoButtonText}>📷</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.tickButton,
+              { opacity: pressed ? 0.7 : 1 },
+            ]}
+            onPress={() => {
+              if (title !== entry.title) onRename?.(entry.id, title);
+            }}
+          >
+            <Text style={styles.tickButtonText}>✓</Text>
+          </Pressable>
+          <Pressable onPress={pickImage} style={styles.photoButton}>
+            <Text style={styles.photoButtonText}>📷</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.titleContainer}>
+        <TextInput
+          value={title}
+          onChangeText={setTitle}
+          style={styles.titleInput}
+          placeholder="Entry title"
+          returnKeyType="done"
+        />
       </View>
 
       <ScrollView contentContainerStyle={styles.timelineContainer}>
@@ -138,6 +168,24 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: '#1f69ff',
     fontWeight: '700',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  tickButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#10b981',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tickButtonText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
   },
   photoButton: {
     width: 40,
@@ -264,6 +312,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     color: '#334155',
+  },
+  titleContainer: {
+    padding: 12,
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    marginTop: 12,
+    borderRadius: 12,
+  },
+  titleInput: {
+    fontSize: 18,
+    fontWeight: '700',
+    padding: 8,
   },
 });
 
