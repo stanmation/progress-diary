@@ -66,7 +66,7 @@ export default function App() {
     const newEntry: DiaryEntry = {
       id: nextId,
       title: `New diary entry`,
-      date: new Date().toLocaleDateString(),
+      date: new Date().toISOString().slice(0, 10),
       content: 'This is a new diary entry. Tap back to return to the list.',
       photos: [],
     };
@@ -107,8 +107,19 @@ export default function App() {
     );
   };
 
-  const handleRenameEntry = (id: string, newTitle: string) => {
-    setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, title: newTitle } : e)));
+  const handlePhotoUpdate = (photoId: string, patch: Partial<DiaryPhoto>) => {
+    setEntries((prevEntries) =>
+      prevEntries.map((entry) =>
+        entry.id === selectedId
+          ? {
+              ...entry,
+              photos: (entry.photos ?? []).map((photo) =>
+                photo.id === photoId ? { ...photo, ...patch } : photo
+              ),
+            }
+          : entry
+      )
+    );
   };
 
   if (currentScreen === 'timeline') {
@@ -126,7 +137,7 @@ export default function App() {
         entry={selectedEntry}
         onBack={goBackToList}
         onPhotoSelect={handlePhotoSelect}
-        onRename={handleRenameEntry}
+        onPhotoUpdate={handlePhotoUpdate}
       />
     );
   }

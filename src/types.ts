@@ -3,6 +3,7 @@ export type DiaryPhoto = {
   uri: string;
   selectedAt: string;
   createdAt?: string;
+  description?: string;
   fileName?: string;
   width?: number;
   height?: number;
