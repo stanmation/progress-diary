@@ -122,6 +122,23 @@ export default function App() {
     );
   };
 
+  const handleEntryUpdate = (patch: Partial<DiaryEntry>) => {
+    if (!selectedId) return;
+    setEntries((prevEntries) =>
+      prevEntries.map((entry) => (entry.id === selectedId ? { ...entry, ...patch } : entry))
+    );
+  };
+
+  const handlePhotoDelete = (photoId: string) => {
+    setEntries((prevEntries) =>
+      prevEntries.map((entry) =>
+        entry.id === selectedId
+          ? { ...entry, photos: (entry.photos ?? []).filter((p) => p.id !== photoId) }
+          : entry
+      )
+    );
+  };
+
   if (currentScreen === 'timeline') {
     return (
       <DiaryPhotosTimeline
@@ -138,6 +155,8 @@ export default function App() {
         onBack={goBackToList}
         onPhotoSelect={handlePhotoSelect}
         onPhotoUpdate={handlePhotoUpdate}
+          onPhotoDelete={handlePhotoDelete}
+          onEntryUpdate={handleEntryUpdate}
       />
     );
   }

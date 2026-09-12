@@ -3,6 +3,7 @@ import {
   Image,
   Modal,
   Pressable,
+  SectionList,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,12 +12,15 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import type { DiaryEntry, DiaryPhoto } from './types';
+import PhotoViewer from './PhotoViewer';
 
 type DiaryDetailsProps = {
   entry: DiaryEntry;
   onBack: () => void;
   onPhotoSelect?: (photo: DiaryPhoto) => void;
   onPhotoUpdate?: (photoId: string, patch: Partial<DiaryPhoto>) => void;
+  onPhotoDelete?: (photoId: string) => void;
+  onEntryUpdate?: (patch: Partial<DiaryEntry>) => void;
 };
 
 const MONTHS = [
@@ -94,10 +98,15 @@ export default function DiaryDetails({
   onBack,
   onPhotoSelect,
   onPhotoUpdate,
+  onPhotoDelete,
+  onEntryUpdate,
 }: DiaryDetailsProps) {
   const [hasPhotoPermission, setHasPhotoPermission] = useState<boolean | null>(null);
   // A photo picked without a creation date, waiting for the user to set one.
   const [pendingPhoto, setPendingPhoto] = useState<DiaryPhoto | null>(null);
+  const [viewingPhoto, setViewingPhoto] = useState<DiaryPhoto | null>(null);
+  const [editingContent, setEditingContent] = useState(false);
+  const [contentDraft, setContentDraft] = useState(entry.content ?? '');
   const today = useMemo(() => new Date(), []);
   const [pickerYear, setPickerYear] = useState(today.getFullYear());
   const [pickerMonth, setPickerMonth] = useState(today.getMonth()); // 0-11
@@ -177,6 +186,22 @@ export default function DiaryDetails({
       new Date(a.createdAt ?? a.selectedAt).getTime()
   );
 
+  // Group photos into sections by year for a sticky section header
+  const sections = (() => {
+    const map = new Map<number, typeof sortedPhotos>();
+    for (const photo of sortedPhotos) {
+      const ts = photo.createdAt ?? photo.selectedAt;
+      const year = new Date(ts).getFullYear();
+      const arr = map.get(year) ?? [];
+      arr.push(photo);
+      map.set(year, arr);
+    }
+    // Sort years descending so newest year appears first
+    return Array.from(map.entries())
+      .sort((a, b) => b[0] - a[0])
+      .map(([year, data]) => ({ title: String(year), data }));
+  })();
+
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
@@ -191,49 +216,56 @@ export default function DiaryDetails({
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.contentContainer}>
-        {entry.content ? (
-          <Text style={styles.entryContent}>{entry.content}</Text>
-        ) : null}
+      <SectionList
+        contentContainerStyle={styles.contentContainer}
+        sections={sections}
+        keyExtractor={(item) => item.id}
+        ListHeaderComponent={
+          <Pressable onPress={() => {
+            setContentDraft(entry.content ?? '');
+            setEditingContent(true);
+          }}>
+            <Text style={styles.entryContent}>{entry.content}</Text>
+          </Pressable>
+        }
+        ListEmptyComponent={<Text style={styles.emptyText}>No photo yet. Tap the camera to add one.</Text>}
+        renderSectionHeader={({ section }) => (
+          <View style={styles.yearHeader}>
+            <Text style={styles.yearHeaderText}>{section.title}</Text>
+          </View>
+        )}
+        renderItem={({ item: photo }) => {
+          const { day, month } = parseEntryDate(photo.createdAt ?? photo.selectedAt);
+          return (
+            <View key={photo.id} style={styles.entryRow}>
+              <View style={styles.dateColumn}>
+                <Text style={styles.dayNumber} numberOfLines={1}>
+                  {day}
+                </Text>
+                <Text style={styles.monthLabel} numberOfLines={1}>
+                  {month}
+                </Text>
+              </View>
 
-        {sortedPhotos.length === 0 ? (
-          <Text style={styles.emptyText}>
-            No photo yet. Tap the camera to add one.
-          </Text>
-        ) : (
-          sortedPhotos.map((photo) => {
-            const { day, month } = parseEntryDate(photo.createdAt ?? photo.selectedAt);
-            return (
-              <View key={photo.id} style={styles.entryRow}>
-                <View style={styles.dateColumn}>
-                  <Text style={styles.dayNumber} numberOfLines={1}>
-                    {day}
-                  </Text>
-                  <Text style={styles.monthLabel} numberOfLines={1}>
-                    {month}
-                  </Text>
-                </View>
-
-                <View style={styles.detailColumn}>
+              <View style={styles.detailColumn}>
+                <Pressable onPress={() => setViewingPhoto(photo)}>
                   <Image
                     source={{ uri: photo.uri }}
                     style={styles.photoImage}
                     resizeMode="cover"
                   />
-                  <TextInput
-                    style={styles.descriptionInput}
-                    placeholder="Add a description…"
-                    placeholderTextColor="#94a3b8"
-                    value={photo.description ?? ''}
-                    onChangeText={(text) => onPhotoUpdate?.(photo.id, { description: text })}
-                    multiline
-                  />
-                </View>
+                </Pressable>
+                <Pressable onPress={() => setViewingPhoto(photo)}>
+                  <Text style={[styles.descriptionInput, styles.descriptionReadOnly]} numberOfLines={3}>
+                    {photo.description ?? ''}
+                  </Text>
+                </Pressable>
               </View>
-            );
-          })
-        )}
-      </ScrollView>
+            </View>
+          );
+        }}
+        stickySectionHeadersEnabled
+      />
 
       <Modal
         visible={pendingPhoto !== null}
@@ -329,6 +361,47 @@ export default function DiaryDetails({
                 <Text style={styles.modalButtonGhostText}>Skip</Text>
               </Pressable>
               <Pressable onPress={confirmPhotoDate} style={[styles.modalButton, styles.modalButtonPrimary]}>
+                <Text style={styles.modalButtonPrimaryText}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <PhotoViewer
+        visible={viewingPhoto !== null}
+        photo={viewingPhoto}
+        onClose={() => setViewingPhoto(null)}
+        onSave={(photoId, patch) => onPhotoUpdate?.(photoId, patch)}
+        onDelete={(photoId) => {
+          onPhotoDelete?.(photoId);
+        }}
+      />
+
+      <Modal
+        visible={editingContent}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditingContent(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit entry</Text>
+            <TextInput
+              style={[styles.descriptionInput, { minHeight: 120 }]}
+              value={contentDraft}
+              onChangeText={setContentDraft}
+              multiline
+            />
+
+            <View style={styles.modalActions}>
+              <Pressable onPress={() => setEditingContent(false)} style={[styles.modalButton, styles.modalButtonGhost]}>
+                <Text style={styles.modalButtonGhostText}>Cancel</Text>
+              </Pressable>
+              <Pressable onPress={() => {
+                onEntryUpdate?.({ content: contentDraft });
+                setEditingContent(false);
+              }} style={[styles.modalButton, styles.modalButtonPrimary]}>
                 <Text style={styles.modalButtonPrimaryText}>Save</Text>
               </Pressable>
             </View>
@@ -512,6 +585,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
   },
+  yearHeader: {
+    width: '100%',
+    paddingVertical: 8,
+    backgroundColor: '#f1f5f9',
+    marginBottom: 8,
+    justifyContent: 'center',
+  },
+  yearHeaderText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#000',
+    paddingLeft: 20,
+  },
   modalActions: {
     flexDirection: 'row',
     gap: 12,
@@ -539,5 +625,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 16,
   },
+  descriptionReadOnly: {
+    backgroundColor: 'transparent',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    color: '#334155',
+    minHeight: 44,
+    borderWidth: 0,
+    borderColor: 'transparent',
+  },
+  // viewer styles moved to PhotoViewer.tsx
 });
 
