@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -13,23 +14,33 @@ type DiaryListProps = {
   entries: DiaryEntry[];
   onSelect: (id: string) => void;
   onAdd: () => void;
-  onTimelinePress: () => void;
   onDelete: (id: string) => void;
+  onEntryUpdate: (id: string, patch: Partial<DiaryEntry>) => void;
 };
 
-export default function DiaryList({ entries, onSelect, onAdd, onTimelinePress, onDelete }: DiaryListProps) {
-  const hasPhotos = entries.some((entry) => (entry.photos?.length ?? 0) > 0);
+export default function DiaryList({ entries, onSelect, onAdd, onDelete, onEntryUpdate }: DiaryListProps) {
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [titleDraft, setTitleDraft] = useState('');
+
+  const beginTitleEdit = (entry: DiaryEntry) => {
+    setEditingEntryId(entry.id);
+    setTitleDraft(entry.title);
+  };
+
+  const saveTitle = () => {
+    if (!editingEntryId) return;
+    const title = titleDraft.trim();
+    if (title) {
+      onEntryUpdate(editingEntryId, { title });
+    }
+    setEditingEntryId(null);
+  };
 
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Progress Diary</Text>
         <View style={styles.headerButtons}>
-          {hasPhotos && (
-            <Pressable onPress={onTimelinePress} style={styles.timelineButton}>
-              <Text style={styles.timelineButtonText}>📷</Text>
-            </Pressable>
-          )}
           <Pressable onPress={onAdd} style={styles.addButton}>
             <Text style={styles.addButtonText}>+</Text>
           </Pressable>
@@ -55,7 +66,29 @@ export default function DiaryList({ entries, onSelect, onAdd, onTimelinePress, o
               onPress={() => onSelect(entry.id)}
               style={styles.listItem}
             >
-              <Text style={styles.itemTitle}>{entry.title}</Text>
+              {editingEntryId === entry.id ? (
+                <TextInput
+                  autoFocus
+                  selectTextOnFocus
+                  returnKeyType="done"
+                  value={titleDraft}
+                  onChangeText={setTitleDraft}
+                  onSubmitEditing={saveTitle}
+                  onBlur={saveTitle}
+                  onTouchStart={(event) => event.stopPropagation()}
+                  style={styles.itemTitleInput}
+                />
+              ) : (
+                <Pressable
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    beginTitleEdit(entry);
+                  }}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.itemTitle}>{entry.title}</Text>
+                </Pressable>
+              )}
               <Text style={styles.itemDate}>{entry.date}</Text>
               <Text numberOfLines={2} style={styles.itemContent}>
                 {entry.content}
@@ -91,22 +124,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     alignItems: 'center',
-  },
-  timelineButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  timelineButtonText: {
-    fontSize: 20,
   },
   addButton: {
     width: 42,
@@ -145,6 +162,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 4,
+  },
+  itemTitleInput: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 4,
+    paddingVertical: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1f69ff',
   },
   itemDate: {
     color: '#667085',

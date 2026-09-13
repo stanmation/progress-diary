@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, useWindowDimensions } from 'react-native';
 import DiaryDetails from './DiaryDetails';
 import DiaryList from './DiaryList';
 import DiaryPhotosTimeline from './DiaryPhotosTimeline';
@@ -18,6 +19,31 @@ const initialEntries: DiaryEntry[] = [
 ];
 
 type Screen = 'list' | 'details' | 'timeline';
+
+function DetailsTransition({ children }: { children: React.ReactNode }) {
+  const { width } = useWindowDimensions();
+  const slideProgress = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.timing(slideProgress, {
+      toValue: 0,
+      duration: 280,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [slideProgress]);
+
+  const translateX = slideProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, width],
+  });
+
+  return (
+    <Animated.View style={{ flex: 1, transform: [{ translateX }] }}>
+      {children}
+    </Animated.View>
+  );
+}
 
 export default function App() {
   const [entries, setEntries] = useState<DiaryEntry[]>(initialEntries);
@@ -129,6 +155,12 @@ export default function App() {
     );
   };
 
+  const handleListEntryUpdate = (id: string, patch: Partial<DiaryEntry>) => {
+    setEntries((prevEntries) =>
+      prevEntries.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry))
+    );
+  };
+
   const handlePhotoDelete = (photoId: string) => {
     setEntries((prevEntries) =>
       prevEntries.map((entry) =>
@@ -150,14 +182,16 @@ export default function App() {
 
   if (currentScreen === 'details' && selectedEntry) {
     return (
-      <DiaryDetails
-        entry={selectedEntry}
-        onBack={goBackToList}
-        onPhotoSelect={handlePhotoSelect}
-        onPhotoUpdate={handlePhotoUpdate}
+      <DetailsTransition>
+        <DiaryDetails
+          entry={selectedEntry}
+          onBack={goBackToList}
+          onPhotoSelect={handlePhotoSelect}
+          onPhotoUpdate={handlePhotoUpdate}
           onPhotoDelete={handlePhotoDelete}
           onEntryUpdate={handleEntryUpdate}
-      />
+        />
+      </DetailsTransition>
     );
   }
 
@@ -166,8 +200,8 @@ export default function App() {
       entries={entries}
       onSelect={goToDetails}
       onAdd={addEntry}
-      onTimelinePress={goToTimeline}
       onDelete={handleDeleteEntry}
+      onEntryUpdate={handleListEntryUpdate}
     />
   );
 }

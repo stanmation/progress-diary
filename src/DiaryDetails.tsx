@@ -205,15 +205,15 @@ export default function DiaryDetails({
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
-        <Pressable onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>Back</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>Details</Text>
-        <View style={styles.headerActions}>
-          <Pressable onPress={pickImage} style={styles.photoButton}>
-            <Text style={styles.photoButtonText}>📷</Text>
+        <View style={styles.headerSide}>
+          <Pressable onPress={onBack} style={styles.backButton}>
+            <Text style={styles.backButtonText}>Back</Text>
           </Pressable>
         </View>
+        <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+          {entry.title}
+        </Text>
+        <View style={styles.headerSide} />
       </View>
 
       <SectionList
@@ -266,6 +266,14 @@ export default function DiaryDetails({
         }}
         stickySectionHeadersEnabled
       />
+
+      <Pressable
+        onPress={pickImage}
+        style={styles.floatingPhotoButton}
+        accessibilityLabel="Add photo"
+      >
+        <Text style={styles.floatingPhotoButtonText}>📷</Text>
+      </Pressable>
 
       <Modal
         visible={pendingPhoto !== null}
@@ -427,9 +435,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#1f69ff',
   },
   headerTitle: {
+    flex: 1,
     color: '#fff',
     fontSize: 22,
     fontWeight: '700',
+    textAlign: 'center',
+  },
+  headerSide: {
+    width: 70,
   },
   backButton: {
     paddingVertical: 8,
@@ -441,25 +454,28 @@ const styles = StyleSheet.create({
     color: '#1f69ff',
     fontWeight: '700',
   },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-  },
-  photoButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoButtonText: {
-    fontSize: 20,
-  },
   contentContainer: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 112,
+  },
+  floatingPhotoButton: {
+    position: 'absolute',
+    right: 24,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#1f69ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  floatingPhotoButtonText: {
+    fontSize: 24,
   },
   entryContent: {
     fontSize: 18,
