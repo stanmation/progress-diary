@@ -13,6 +13,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import type { DiaryEntry, DiaryPhoto } from './types';
 import PhotoViewer from './PhotoViewer';
+import VideoThumbnailView from './VideoThumbnailView';
 
 type DiaryDetailsProps = {
   entry: DiaryEntry;
@@ -112,7 +113,7 @@ export default function DiaryDetails({
   const [pickerMonth, setPickerMonth] = useState(today.getMonth()); // 0-11
   const [pickerDay, setPickerDay] = useState(today.getDate());
 
-  const pickImage = async () => {
+  const pickMedia = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permissionResult.granted) {
@@ -124,7 +125,7 @@ export default function DiaryDetails({
     setHasPhotoPermission(true);
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images', 'videos'],
       // allowsEditing (cropping) strips EXIF on iOS, so keep it off to preserve
       // the photo's original creation date. exif:true asks for the metadata.
       allowsEditing: false,
@@ -134,11 +135,13 @@ export default function DiaryDetails({
 
     if (!result.canceled && result.assets.length > 0) {
       const asset = result.assets[0];
+      const mediaType = asset.type === 'video' ? 'video' : 'image';
       const photo: DiaryPhoto = {
         id: String(Date.now()),
         uri: asset.uri,
+        mediaType,
         selectedAt: new Date().toISOString(),
-        createdAt: exifDateToISO(asset.exif?.DateTimeOriginal),
+        createdAt: mediaType === 'image' ? exifDateToISO(asset.exif?.DateTimeOriginal) : undefined,
         fileName: asset.fileName ?? undefined,
         width: asset.width,
         height: asset.height,
@@ -147,7 +150,7 @@ export default function DiaryDetails({
 
       // No creation-date metadata on the photo — ask the user to set one
       // manually before saving instead of leaving it undated.
-      if (!photo.createdAt) {
+      if (mediaType === 'image' && !photo.createdAt) {
         setPickerYear(today.getFullYear());
         setPickerMonth(today.getMonth());
         setPickerDay(today.getDate());
@@ -249,11 +252,15 @@ export default function DiaryDetails({
 
               <View style={styles.detailColumn}>
                 <Pressable onPress={() => setViewingPhoto(photo)}>
-                  <Image
-                    source={{ uri: photo.uri }}
-                    style={styles.photoImage}
-                    resizeMode="cover"
-                  />
+                  {photo.mediaType === 'video' ? (
+                    <VideoThumbnailView uri={photo.uri} style={styles.photoImage} />
+                  ) : (
+                    <Image
+                      source={{ uri: photo.uri }}
+                      style={styles.photoImage}
+                      resizeMode="cover"
+                    />
+                  )}
                 </Pressable>
                 <Pressable onPress={() => setViewingPhoto(photo)}>
                   <Text style={[styles.descriptionInput, styles.descriptionReadOnly]} numberOfLines={3}>
@@ -268,11 +275,11 @@ export default function DiaryDetails({
       />
 
       <Pressable
-        onPress={pickImage}
+        onPress={pickMedia}
         style={styles.floatingPhotoButton}
-        accessibilityLabel="Add photo"
+        accessibilityLabel="Add photo or video"
       >
-        <Text style={styles.floatingPhotoButtonText}>📷</Text>
+        <Text style={styles.floatingPhotoButtonText}>＋</Text>
       </Pressable>
 
       <Modal

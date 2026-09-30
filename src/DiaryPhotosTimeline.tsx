@@ -1,6 +1,7 @@
 import React from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { DiaryEntry } from './types';
+import VideoThumbnailView from './VideoThumbnailView';
 
 type DiaryPhotosTimelineProps = {
   entries: DiaryEntry[];
@@ -31,16 +32,16 @@ export default function DiaryPhotosTimeline({
         <Pressable onPress={onBack} style={styles.backButton}>
           <Text style={styles.backButtonText}>Back</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>Photo Timeline</Text>
+        <Text style={styles.headerTitle}>Media Timeline</Text>
         <View style={{ width: 50 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.timelineContainer}>
         {photoEntries.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No photos yet</Text>
+            <Text style={styles.emptyText}>No media yet</Text>
             <Text style={styles.emptySubtext}>
-              Add photos to your diary entries to see them here
+              Add photos or videos to your diary entries to see them here
             </Text>
           </View>
         ) : (
@@ -57,11 +58,15 @@ export default function DiaryPhotosTimeline({
                   </View>
 
                   <View style={styles.photoCard}>
-                    <Image
-                      source={{ uri: photo.uri }}
-                      style={styles.photoImage}
-                      resizeMode="cover"
-                    />
+                    {photo.mediaType === 'video' ? (
+                      <VideoThumbnailView uri={photo.uri} style={styles.photoImage} />
+                    ) : (
+                      <Image
+                        source={{ uri: photo.uri }}
+                        style={styles.photoImage}
+                        resizeMode="cover"
+                      />
+                    )}
                     <View style={styles.photoInfo}>
                       <Text style={styles.photoTitle}>{photo.entryTitle}</Text>
                       <Text style={styles.photoDate}>

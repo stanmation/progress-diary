@@ -3,8 +3,12 @@
     "name": "progress-diary",
     "slug": "progress-diary",
     "version": "1.0.0",
-    "sdkVersion": "54.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light"
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-video",
+      "expo-status-bar",
+      "expo-image"
+    ]
   }
 }

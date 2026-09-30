@@ -12,7 +12,10 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Dimensions,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import type { DiaryPhoto } from './types';
 
 type PhotoViewerProps = {
@@ -22,6 +25,14 @@ type PhotoViewerProps = {
   onSave: (photoId: string, patch: Partial<DiaryPhoto>) => void;
   onDelete: (photoId: string) => void;
 };
+
+function VideoPlayback({ uri, style }: { uri: string; style: StyleProp<ViewStyle> }) {
+  const player = useVideoPlayer(uri, (videoPlayer) => {
+    videoPlayer.play();
+  });
+
+  return <VideoView player={player} style={style} contentFit="contain" nativeControls />;
+}
 
 export default function PhotoViewer({ visible, photo, onClose, onSave, onDelete }: PhotoViewerProps) {
   const [draft, setDraft] = useState<string | undefined>(photo?.description);
@@ -107,7 +118,15 @@ export default function PhotoViewer({ visible, photo, onClose, onSave, onDelete 
             </Pressable>
           </View>
 
-          <Image source={{ uri: photo.uri }} style={[styles.viewerImage, { marginBottom: FOOTER_HEIGHT, marginTop: HEADER_HEIGHT }]} resizeMode="contain" />
+          {photo.mediaType === 'video' ? (
+            <VideoPlayback
+              key={photo.uri}
+              uri={photo.uri}
+              style={[styles.viewerImage, { marginBottom: FOOTER_HEIGHT, marginTop: HEADER_HEIGHT }]}
+            />
+          ) : (
+            <Image source={{ uri: photo.uri }} style={[styles.viewerImage, { marginBottom: FOOTER_HEIGHT, marginTop: HEADER_HEIGHT }]} resizeMode="contain" />
+          )}
 
           <View
             style={[

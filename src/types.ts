@@ -1,6 +1,7 @@
 export type DiaryPhoto = {
   id: string;
   uri: string;
+  mediaType?: 'image' | 'video';
   selectedAt: string;
   createdAt?: string;
   description?: string;
