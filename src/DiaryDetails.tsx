@@ -440,6 +440,12 @@ export default function DiaryDetails({
         visible={viewingPhoto !== null}
         photo={viewingPhoto}
         onClose={() => setViewingPhoto(null)}
+        onSaveDate={(photoId, createdAt) => {
+          onPhotoUpdate?.(photoId, { createdAt });
+          setViewingPhoto((current) =>
+            current?.id === photoId ? { ...current, createdAt } : current
+          );
+        }}
         onSave={(photoId, patch) => onPhotoUpdate?.(photoId, patch)}
         onDelete={(photoId) => {
           onPhotoDelete?.(photoId);
