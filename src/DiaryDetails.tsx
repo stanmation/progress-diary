@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import * as FileSystem from 'expo-file-system/legacy';
 import {
   Image,
   Modal,
@@ -105,6 +106,7 @@ export default function DiaryDetails({
   const [hasPhotoPermission, setHasPhotoPermission] = useState<boolean | null>(null);
   // A photo picked without a creation date, waiting for the user to set one.
   const [pendingPhoto, setPendingPhoto] = useState<DiaryPhoto | null>(null);
+  const [pendingPhotos, setPendingPhotos] = useState<DiaryPhoto[]>([]);
   const [viewingPhoto, setViewingPhoto] = useState<DiaryPhoto | null>(null);
   const [editingContent, setEditingContent] = useState(false);
   const [contentDraft, setContentDraft] = useState(entry.content ?? '');
@@ -126,6 +128,7 @@ export default function DiaryDetails({
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images', 'videos'],
+      allowsMultipleSelection: true,
       // allowsEditing (cropping) strips EXIF on iOS, so keep it off to preserve
       // the photo's original creation date. exif:true asks for the metadata.
       allowsEditing: false,
@@ -134,32 +137,60 @@ export default function DiaryDetails({
     });
 
     if (!result.canceled && result.assets.length > 0) {
-      const asset = result.assets[0];
-      const mediaType = asset.type === 'video' ? 'video' : 'image';
-      const photo: DiaryPhoto = {
-        id: String(Date.now()),
-        uri: asset.uri,
-        mediaType,
-        selectedAt: new Date().toISOString(),
-        createdAt: mediaType === 'image' ? exifDateToISO(asset.exif?.DateTimeOriginal) : undefined,
-        fileName: asset.fileName ?? undefined,
-        width: asset.width,
-        height: asset.height,
-        fileSize: asset.fileSize,
-      };
-
-      // No creation-date metadata on the photo — ask the user to set one
-      // manually before saving instead of leaving it undated.
-      if (mediaType === 'image' && !photo.createdAt) {
-        setPickerYear(today.getFullYear());
-        setPickerMonth(today.getMonth());
-        setPickerDay(today.getDate());
-        setPendingPhoto(photo);
+      const documentDirectory = FileSystem.documentDirectory;
+      if (!documentDirectory) {
+        alert('Unable to access app storage. Please try again.');
         return;
       }
 
-      onPhotoSelect?.(photo);
+      const selectedAt = new Date().toISOString();
+      let photos: DiaryPhoto[];
+      try {
+        photos = await Promise.all(result.assets.map(async (asset, index) => {
+          const mediaType = asset.type === 'video' ? 'video' : 'image';
+          const id = `${Date.now()}-${index}`;
+          const sourcePath = asset.uri.split(/[?#]/, 1)[0];
+          const extension = /\.([a-zA-Z0-9]+)$/.exec(sourcePath)?.[1]
+            ?? (mediaType === 'video' ? 'mp4' : 'jpg');
+          const uri = `${documentDirectory}diary-${id}.${extension}`;
+          await FileSystem.copyAsync({ from: asset.uri, to: uri });
+
+          return {
+            id,
+            uri,
+            mediaType,
+            selectedAt,
+            createdAt: mediaType === 'image' ? readExifDate(asset.exif) : undefined,
+            fileName: asset.fileName ?? undefined,
+            width: asset.width,
+            height: asset.height,
+            fileSize: asset.fileSize,
+          };
+        }));
+      } catch (error) {
+        console.warn('Failed to copy selected media into app storage', error);
+        alert('Unable to save the selected media. Please try again.');
+        return;
+      }
+
+      const datedPhotos = photos.filter((photo) => photo.mediaType !== 'image' || photo.createdAt);
+      const undatedPhotos = photos.filter((photo) => photo.mediaType === 'image' && !photo.createdAt);
+
+      datedPhotos.forEach((photo) => onPhotoSelect?.(photo));
+      if (undatedPhotos.length > 0) {
+        setPickerYear(today.getFullYear());
+        setPickerMonth(today.getMonth());
+        setPickerDay(today.getDate());
+        setPendingPhoto(undatedPhotos[0]);
+        setPendingPhotos(undatedPhotos.slice(1));
+      }
     }
+  };
+
+  const advancePendingPhoto = () => {
+    const [nextPhoto, ...remainingPhotos] = pendingPhotos;
+    setPendingPhoto(nextPhoto ?? null);
+    setPendingPhotos(remainingPhotos);
   };
 
   const daysInMonth = new Date(pickerYear, pickerMonth + 1, 0).getDate();
@@ -174,13 +205,13 @@ export default function DiaryDetails({
     // it matches selectedAt's format used everywhere for sorting/display.
     const createdAt = new Date(pickerYear, pickerMonth, safeDay).toISOString();
     onPhotoSelect?.({ ...pendingPhoto, createdAt });
-    setPendingPhoto(null);
+    advancePendingPhoto();
   };
 
   const skipPhotoDate = () => {
     if (!pendingPhoto) return;
     onPhotoSelect?.(pendingPhoto);
-    setPendingPhoto(null);
+    advancePendingPhoto();
   };
 
   const sortedPhotos = [...(entry.photos ?? [])].sort(
@@ -189,15 +220,22 @@ export default function DiaryDetails({
       new Date(a.createdAt ?? a.selectedAt).getTime()
   );
 
-  // Group photos into sections by year for a sticky section header
+  // Group photos by calendar day within year sections.
   const sections = (() => {
-    const map = new Map<number, typeof sortedPhotos>();
+    const map = new Map<number, Array<{ key: string; date: string; photos: DiaryPhoto[] }>>();
     for (const photo of sortedPhotos) {
       const ts = photo.createdAt ?? photo.selectedAt;
-      const year = new Date(ts).getFullYear();
-      const arr = map.get(year) ?? [];
-      arr.push(photo);
-      map.set(year, arr);
+      const parsedDate = new Date(ts);
+      const year = parsedDate.getFullYear();
+      const date = `${year}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`;
+      const days = map.get(year) ?? [];
+      let dayGroup = days.find((group) => group.key === date);
+      if (!dayGroup) {
+        dayGroup = { key: date, date, photos: [] };
+        days.push(dayGroup);
+        map.set(year, days);
+      }
+      dayGroup.photos.push(photo);
     }
     // Sort years descending so newest year appears first
     return Array.from(map.entries())
@@ -222,7 +260,7 @@ export default function DiaryDetails({
       <SectionList
         contentContainerStyle={styles.contentContainer}
         sections={sections}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.key}
         ListHeaderComponent={
           <Pressable onPress={() => {
             setContentDraft(entry.content ?? '');
@@ -231,16 +269,16 @@ export default function DiaryDetails({
             <Text style={styles.entryContent}>{entry.content}</Text>
           </Pressable>
         }
-        ListEmptyComponent={<Text style={styles.emptyText}>No photo yet. Tap the camera to add one.</Text>}
+        ListEmptyComponent={<Text style={styles.emptyText}>No media yet. Tap the camera to add photos or videos.</Text>}
         renderSectionHeader={({ section }) => (
           <View style={styles.yearHeader}>
             <Text style={styles.yearHeaderText}>{section.title}</Text>
           </View>
         )}
-        renderItem={({ item: photo }) => {
-          const { day, month } = parseEntryDate(photo.createdAt ?? photo.selectedAt);
+        renderItem={({ item: dayGroup }) => {
+          const { day, month } = parseEntryDate(dayGroup.date);
           return (
-            <View key={photo.id} style={styles.entryRow}>
+            <View style={styles.entryRow}>
               <View style={styles.dateColumn}>
                 <Text style={styles.dayNumber} numberOfLines={1}>
                   {day}
@@ -251,22 +289,37 @@ export default function DiaryDetails({
               </View>
 
               <View style={styles.detailColumn}>
-                <Pressable onPress={() => setViewingPhoto(photo)}>
-                  {photo.mediaType === 'video' ? (
-                    <VideoThumbnailView uri={photo.uri} style={styles.photoImage} />
-                  ) : (
-                    <Image
-                      source={{ uri: photo.uri }}
-                      style={styles.photoImage}
-                      resizeMode="cover"
-                    />
-                  )}
-                </Pressable>
-                <Pressable onPress={() => setViewingPhoto(photo)}>
-                  <Text style={[styles.descriptionInput, styles.descriptionReadOnly]} numberOfLines={3}>
-                    {photo.description ?? ''}
-                  </Text>
-                </Pressable>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.mediaCarousel}
+                  snapToInterval={232}
+                  snapToAlignment="start"
+                  decelerationRate="fast"
+                >
+                  {dayGroup.photos.map((photo) => (
+                    <View key={photo.id} style={styles.mediaCarouselItem}>
+                      <Pressable style={styles.mediaPressable} onPress={() => setViewingPhoto(photo)}>
+                        {photo.mediaType === 'video' ? (
+                          <VideoThumbnailView uri={photo.uri} style={styles.photoImage} />
+                        ) : (
+                          <Image
+                            source={{ uri: photo.uri }}
+                            style={styles.photoImage}
+                            resizeMode="cover"
+                          />
+                        )}
+                      </Pressable>
+                      {photo.description ? (
+                        <Pressable onPress={() => setViewingPhoto(photo)}>
+                          <Text style={[styles.descriptionInput, styles.descriptionReadOnly]} numberOfLines={3}>
+                            {photo.description}
+                          </Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  ))}
+                </ScrollView>
               </View>
             </View>
           );
@@ -518,6 +571,16 @@ const styles = StyleSheet.create({
     paddingRight: 12,
     borderLeftWidth: 1,
     borderLeftColor: '#e2e8f0',
+  },
+  mediaCarousel: {
+    paddingRight: 8,
+  },
+  mediaCarouselItem: {
+    width: 220,
+    marginRight: 12,
+  },
+  mediaPressable: {
+    width: 220,
   },
   photoImage: {
     width: '100%',
