@@ -16,7 +16,9 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { VideoView, useVideoPlayer } from 'expo-video';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { DiaryPhoto } from './types';
 
 type PhotoViewerProps = {
@@ -66,7 +68,8 @@ export default function PhotoViewer({ visible, photo, onClose, onSaveDate, onSav
   const monthWheelRef = useRef<ScrollView>(null);
   const yearWheelRef = useRef<ScrollView>(null);
   const FOOTER_HEIGHT = 250;
-  const HEADER_HEIGHT = Platform.OS === 'ios' ? 88 : 72;
+  const insets = useSafeAreaInsets();
+  const HEADER_HEIGHT = insets.top + 52;
   const daysInMonth = new Date(pickerYear, pickerMonth + 1, 0).getDate();
   const safeDay = Math.min(pickerDay, daysInMonth);
   const dayOptions = Array.from({ length: daysInMonth }, (_, index) => index + 1);
@@ -137,7 +140,9 @@ export default function PhotoViewer({ visible, photo, onClose, onSaveDate, onSav
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={styles.viewerContainer}>
-          <View style={[styles.viewerHeader, { height: HEADER_HEIGHT }] }>
+          {/* Dark status bar icons over the white viewer header. */}
+          <StatusBar style="dark" />
+          <View style={[styles.viewerHeader, { height: HEADER_HEIGHT, paddingTop: insets.top }]}>
             <Pressable
               onPress={onClose}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -364,7 +369,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: 12,
-    paddingTop: Platform.OS === 'ios' ? 44 : 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

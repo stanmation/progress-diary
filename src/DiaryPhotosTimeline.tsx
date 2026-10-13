@@ -1,5 +1,7 @@
 import React from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { HeaderBackButton } from './HeaderButtons';
 import type { DiaryEntry } from './types';
 import VideoThumbnailView from './VideoThumbnailView';
 
@@ -12,6 +14,7 @@ export default function DiaryPhotosTimeline({
   entries,
   onBack,
 }: DiaryPhotosTimelineProps) {
+  const insets = useSafeAreaInsets();
   const photoEntries = entries
     .flatMap((entry) =>
       (entry.photos ?? []).map((photo) => ({
@@ -28,15 +31,15 @@ export default function DiaryPhotosTimeline({
 
   return (
     <View style={styles.screen}>
-      <View style={styles.header}>
-        <Pressable onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>Back</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>Media Timeline</Text>
-        <View style={{ width: 50 }} />
+      <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
+        <View style={styles.headerSide}>
+          <HeaderBackButton onPress={onBack} />
+        </View>
+        <Text style={styles.headerTitle} numberOfLines={1}>Media Timeline</Text>
+        <View style={styles.headerSide} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.timelineContainer}>
+      <ScrollView contentContainerStyle={[styles.timelineContainer, { paddingBottom: insets.bottom + 40 }]}>
         {photoEntries.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No media yet</Text>
@@ -91,28 +94,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#f7f8fb',
   },
   header: {
-    height: 80,
-    paddingTop: 32,
-    paddingHorizontal: 20,
+    paddingBottom: 4,
+    paddingHorizontal: Platform.OS === 'ios' ? 16 : 4,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#1f69ff',
   },
+  // iOS: centered semibold nav bar title. Android: left-aligned Material top app bar title.
   headerTitle: {
+    flex: 1,
     color: '#fff',
-    fontSize: 22,
-    fontWeight: '700',
+    ...Platform.select({
+      ios: { fontSize: 17, fontWeight: '600', textAlign: 'center' },
+      default: { fontSize: 22, fontWeight: '400', textAlign: 'left', marginLeft: 12 },
+    }),
   },
-  backButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-  },
-  backButtonText: {
-    color: '#1f69ff',
-    fontWeight: '700',
+  headerSide: {
+    width: Platform.OS === 'ios' ? 80 : 48,
   },
   timelineContainer: {
     padding: 20,

@@ -3,6 +3,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import {
   Image,
   Modal,
+  Platform,
   Pressable,
   SectionList,
   ScrollView,
@@ -12,7 +13,9 @@ import {
   View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { DiaryEntry, DiaryPhoto } from './types';
+import { HeaderBackButton, HeaderIconButton, PlatformIcon } from './HeaderButtons';
 import PhotoViewer from './PhotoViewer';
 import VideoThumbnailView from './VideoThumbnailView';
 
@@ -103,6 +106,7 @@ export default function DiaryDetails({
   onPhotoDelete,
   onEntryUpdate,
 }: DiaryDetailsProps) {
+  const insets = useSafeAreaInsets();
   const [hasPhotoPermission, setHasPhotoPermission] = useState<boolean | null>(null);
   // A photo picked without a creation date, waiting for the user to set one.
   const [pendingPhoto, setPendingPhoto] = useState<DiaryPhoto | null>(null);
@@ -247,32 +251,28 @@ export default function DiaryDetails({
 
   return (
     <View style={styles.screen}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
         <View style={styles.headerSide}>
-          <Pressable onPress={onBack} style={styles.backButton}>
-            <Text style={styles.backButtonText}>Back</Text>
-          </Pressable>
+          <HeaderBackButton onPress={onBack} />
         </View>
         <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
           {entry.title}
         </Text>
         <View style={[styles.headerSide, styles.headerSideRight]}>
-          <Pressable
+          <HeaderIconButton
+            ios="create-outline"
+            android="edit"
+            accessibilityLabel="Rename entry"
             onPress={() => {
               setTitleDraft(entry.title);
               setEditingTitle(true);
             }}
-            style={styles.renameButton}
-            accessibilityRole="button"
-            accessibilityLabel="Rename entry"
-          >
-            <Text style={styles.renameButtonText}>✎</Text>
-          </Pressable>
+          />
         </View>
       </View>
 
       <SectionList
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={[styles.contentContainer, { paddingBottom: insets.bottom + 112 }]}
         sections={sections}
         keyExtractor={(item) => item.key}
         ListHeaderComponent={
@@ -343,10 +343,11 @@ export default function DiaryDetails({
 
       <Pressable
         onPress={pickMedia}
-        style={styles.floatingPhotoButton}
+        style={[styles.floatingPhotoButton, { bottom: insets.bottom + 24 }]}
+        accessibilityRole="button"
         accessibilityLabel="Add photo or video"
       >
-        <Text style={styles.floatingPhotoButtonText}>＋</Text>
+        <PlatformIcon ios="camera" android="add-a-photo" size={26} color="#fff" />
       </Pressable>
 
       <Modal
@@ -548,49 +549,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#f7f8fb',
   },
   header: {
-    height: 80,
-    paddingTop: 32,
-    paddingHorizontal: 20,
+    paddingBottom: 4,
+    paddingHorizontal: Platform.OS === 'ios' ? 16 : 4,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#1f69ff',
   },
+  // iOS: centered semibold nav bar title. Android: left-aligned Material top app bar title.
   headerTitle: {
     flex: 1,
     color: '#fff',
-    fontSize: 22,
-    fontWeight: '700',
-    textAlign: 'center',
+    ...Platform.select({
+      ios: { fontSize: 17, fontWeight: '600', textAlign: 'center' },
+      default: { fontSize: 22, fontWeight: '400', textAlign: 'left', marginLeft: 12 },
+    }),
   },
   headerSide: {
-    width: 70,
+    width: Platform.OS === 'ios' ? 80 : 48,
   },
   headerSideRight: {
     alignItems: 'flex-end',
-  },
-  renameButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  renameButtonText: {
-    color: '#1f69ff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  backButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-  },
-  backButtonText: {
-    color: '#1f69ff',
-    fontWeight: '700',
   },
   contentContainer: {
     padding: 20,
@@ -611,9 +590,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowRadius: 6,
     elevation: 5,
-  },
-  floatingPhotoButtonText: {
-    fontSize: 24,
   },
   entryContent: {
     fontSize: 18,

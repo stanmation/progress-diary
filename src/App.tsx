@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { StatusBar } from 'expo-status-bar';
 import { Animated, BackHandler, Easing, StyleSheet, View, useWindowDimensions } from 'react-native';
 import DiaryDetails from './DiaryDetails';
 import DiaryList from './DiaryList';
@@ -234,15 +235,17 @@ export default function App() {
     );
   }
 
-  if (!overlay) return list;
-
   // The list is only mounted underneath while the overlay slides out, so it's revealed as it goes.
   return (
     <View style={{ flex: 1 }}>
-      {isLeaving && list}
-      <ScreenTransition leaving={isLeaving} onExited={finishGoBack}>
-        {overlay}
-      </ScreenTransition>
+      {/* Light status bar icons to sit on the blue headers. */}
+      <StatusBar style="light" />
+      {(!overlay || isLeaving) && list}
+      {overlay && (
+        <ScreenTransition leaving={isLeaving} onExited={finishGoBack}>
+          {overlay}
+        </ScreenTransition>
+      )}
     </View>
   );
 }

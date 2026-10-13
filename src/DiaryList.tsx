@@ -1,5 +1,7 @@
 import React from 'react';
 import {
+  Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -7,6 +9,8 @@ import {
   View,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { HeaderIconButton } from './HeaderButtons';
 import type { DiaryEntry } from './types';
 
 type DiaryListProps = {
@@ -17,26 +21,42 @@ type DiaryListProps = {
 };
 
 export default function DiaryList({ entries, onSelect, onAdd, onDelete }: DiaryListProps) {
+  const insets = useSafeAreaInsets();
+
+  const confirmDelete = (entry: DiaryEntry, onCancel: () => void) => {
+    const mediaCount = entry.photos?.length ?? 0;
+    Alert.alert(
+      'Delete entry?',
+      mediaCount > 0
+        ? `"${entry.title}" and its ${mediaCount} ${mediaCount === 1 ? 'photo or video' : 'photos and videos'} will be permanently deleted.`
+        : `"${entry.title}" will be permanently deleted.`,
+      [
+        { text: 'Cancel', style: 'cancel', onPress: onCancel },
+        { text: 'Delete', style: 'destructive', onPress: () => onDelete(entry.id) },
+      ],
+      { cancelable: true, onDismiss: onCancel }
+    );
+  };
+
   return (
     <View style={styles.screen}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
         <Text style={styles.headerTitle}>Progress Diary</Text>
         <View style={styles.headerButtons}>
-          <Pressable onPress={onAdd} style={styles.addButton}>
-            <Text style={styles.addButtonText}>+</Text>
-          </Pressable>
+          <HeaderIconButton ios="add" android="add" accessibilityLabel="Add entry" onPress={onAdd} />
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.listContainer}>
+      <ScrollView contentContainerStyle={[styles.listContainer, { paddingBottom: insets.bottom + 20 }]}>
         {entries.map((entry) => (
           <Swipeable
             key={entry.id}
-            renderRightActions={() => (
+            renderRightActions={(_progress, _drag, swipeable) => (
               <View style={styles.rightActionContainer}>
                 <Pressable
                   style={styles.deleteButton}
-                  onPress={() => onDelete(entry.id)}
+                  onPress={() => confirmDelete(entry, () => swipeable.close())}
+                  accessibilityRole="button"
                 >
                   <Text style={styles.deleteButtonText}>Delete</Text>
                 </Pressable>
@@ -66,9 +86,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f7f8fb',
   },
   header: {
-    height: 80,
-    paddingTop: 32,
-    paddingHorizontal: 20,
+    paddingBottom: 4,
+    paddingLeft: 20,
+    paddingRight: Platform.OS === 'ios' ? 12 : 4,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -83,25 +103,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     alignItems: 'center',
-  },
-  addButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  addButtonText: {
-    color: '#1f69ff',
-    fontSize: 28,
-    fontWeight: '700',
-    lineHeight: 32,
   },
   listContainer: {
     padding: 20,
@@ -141,7 +142,8 @@ const styles = StyleSheet.create({
   deleteButton: {
     backgroundColor: '#ff4d4f',
     borderRadius: 12,
-    paddingVertical: 10,
+    minHeight: 48,
+    justifyContent: 'center',
     paddingHorizontal: 16,
   },
   deleteButtonText: {

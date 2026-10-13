@@ -4,12 +4,12 @@ import { useVideoPlayer, VideoView, type VideoThumbnail } from 'expo-video';
 import {
   Platform,
   StyleSheet,
-  Text,
   View,
   type ImageStyle,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { PlatformIcon } from './HeaderButtons';
 
 type VideoThumbnailViewProps = {
   uri: string;
@@ -87,7 +87,7 @@ export default function VideoThumbnailView({ uri, style }: VideoThumbnailViewPro
         <View style={[styles.frameMedia, styles.placeholder]} />
       )}
       <View pointerEvents="none" style={styles.playBadge}>
-        <Text style={styles.playIcon}>▶</Text>
+        <PlatformIcon ios="play" android="play-arrow" size={26} color="#fff" />
       </View>
     </View>
   );
@@ -116,10 +116,5 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.62)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  playIcon: {
-    color: '#fff',
-    fontSize: 18,
-    marginLeft: 3,
   },
 });
