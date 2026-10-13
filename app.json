@@ -3,12 +3,23 @@
     "name": "progress-diary",
     "slug": "progress-diary",
     "version": "1.0.0",
+    "android": {
+      "package": "com.stanmation.progressdiary"
+    },
+    "ios": {
+      "bundleIdentifier": "com.stanmation.progressdiary"
+    },
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "plugins": [
       "expo-video",
       "expo-status-bar",
       "expo-image"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "48a45bd6-5816-42d5-bc96-55c1887d4ef3"
+      }
+    }
   }
 }
