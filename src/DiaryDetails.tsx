@@ -110,6 +110,8 @@ export default function DiaryDetails({
   const [viewingPhoto, setViewingPhoto] = useState<DiaryPhoto | null>(null);
   const [editingContent, setEditingContent] = useState(false);
   const [contentDraft, setContentDraft] = useState(entry.content ?? '');
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(entry.title);
   const today = useMemo(() => new Date(), []);
   const [pickerYear, setPickerYear] = useState(today.getFullYear());
   const [pickerMonth, setPickerMonth] = useState(today.getMonth()); // 0-11
@@ -254,7 +256,19 @@ export default function DiaryDetails({
         <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
           {entry.title}
         </Text>
-        <View style={styles.headerSide} />
+        <View style={[styles.headerSide, styles.headerSideRight]}>
+          <Pressable
+            onPress={() => {
+              setTitleDraft(entry.title);
+              setEditingTitle(true);
+            }}
+            style={styles.renameButton}
+            accessibilityRole="button"
+            accessibilityLabel="Rename entry"
+          >
+            <Text style={styles.renameButtonText}>✎</Text>
+          </Pressable>
+        </View>
       </View>
 
       <SectionList
@@ -482,6 +496,48 @@ export default function DiaryDetails({
           </View>
         </View>
       </Modal>
+
+      <Modal
+        visible={editingTitle}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditingTitle(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={[styles.modalTitle, { marginBottom: 14 }]}>Rename entry</Text>
+            <TextInput
+              style={styles.descriptionInput}
+              value={titleDraft}
+              onChangeText={setTitleDraft}
+              autoFocus
+              selectTextOnFocus
+              returnKeyType="done"
+              onSubmitEditing={() => {
+                const title = titleDraft.trim();
+                if (title) onEntryUpdate?.({ title });
+                setEditingTitle(false);
+              }}
+            />
+
+            <View style={styles.modalActions}>
+              <Pressable onPress={() => setEditingTitle(false)} style={[styles.modalButton, styles.modalButtonGhost]}>
+                <Text style={styles.modalButtonGhostText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                disabled={!titleDraft.trim()}
+                onPress={() => {
+                  onEntryUpdate?.({ title: titleDraft.trim() });
+                  setEditingTitle(false);
+                }}
+                style={[styles.modalButton, styles.modalButtonPrimary, !titleDraft.trim() && { opacity: 0.5 }]}
+              >
+                <Text style={styles.modalButtonPrimaryText}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -509,6 +565,22 @@ const styles = StyleSheet.create({
   },
   headerSide: {
     width: 70,
+  },
+  headerSideRight: {
+    alignItems: 'flex-end',
+  },
+  renameButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  renameButtonText: {
+    color: '#1f69ff',
+    fontSize: 18,
+    fontWeight: '700',
   },
   backButton: {
     paddingVertical: 8,

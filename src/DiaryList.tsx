@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -15,27 +14,9 @@ type DiaryListProps = {
   onSelect: (id: string) => void;
   onAdd: () => void;
   onDelete: (id: string) => void;
-  onEntryUpdate: (id: string, patch: Partial<DiaryEntry>) => void;
 };
 
-export default function DiaryList({ entries, onSelect, onAdd, onDelete, onEntryUpdate }: DiaryListProps) {
-  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
-  const [titleDraft, setTitleDraft] = useState('');
-
-  const beginTitleEdit = (entry: DiaryEntry) => {
-    setEditingEntryId(entry.id);
-    setTitleDraft(entry.title);
-  };
-
-  const saveTitle = () => {
-    if (!editingEntryId) return;
-    const title = titleDraft.trim();
-    if (title) {
-      onEntryUpdate(editingEntryId, { title });
-    }
-    setEditingEntryId(null);
-  };
-
+export default function DiaryList({ entries, onSelect, onAdd, onDelete }: DiaryListProps) {
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
@@ -66,29 +47,7 @@ export default function DiaryList({ entries, onSelect, onAdd, onDelete, onEntryU
               onPress={() => onSelect(entry.id)}
               style={styles.listItem}
             >
-              {editingEntryId === entry.id ? (
-                <TextInput
-                  autoFocus
-                  selectTextOnFocus
-                  returnKeyType="done"
-                  value={titleDraft}
-                  onChangeText={setTitleDraft}
-                  onSubmitEditing={saveTitle}
-                  onBlur={saveTitle}
-                  onTouchStart={(event) => event.stopPropagation()}
-                  style={styles.itemTitleInput}
-                />
-              ) : (
-                <Pressable
-                  onPress={(event) => {
-                    event.stopPropagation();
-                    beginTitleEdit(entry);
-                  }}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.itemTitle}>{entry.title}</Text>
-                </Pressable>
-              )}
+              <Text style={styles.itemTitle}>{entry.title}</Text>
               <Text style={styles.itemDate}>{entry.date}</Text>
               <Text numberOfLines={2} style={styles.itemContent}>
                 {entry.content}
@@ -162,14 +121,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 4,
-  },
-  itemTitleInput: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 4,
-    paddingVertical: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1f69ff',
   },
   itemDate: {
     color: '#667085',

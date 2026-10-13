@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, useWindowDimensions } from 'react-native';
+import { Animated, BackHandler, Easing, StyleSheet, View, useWindowDimensions } from 'react-native';
 import DiaryDetails from './DiaryDetails';
 import DiaryList from './DiaryList';
 import DiaryPhotosTimeline from './DiaryPhotosTimeline';
@@ -20,7 +20,16 @@ const initialEntries: DiaryEntry[] = [
 
 type Screen = 'list' | 'details' | 'timeline';
 
-function DetailsTransition({ children }: { children: React.ReactNode }) {
+// Slides a screen in from the right on mount, and back out to the right when `leaving` turns true.
+function ScreenTransition({
+  children,
+  leaving,
+  onExited,
+}: {
+  children: React.ReactNode;
+  leaving: boolean;
+  onExited: () => void;
+}) {
   const { width } = useWindowDimensions();
   const slideProgress = useRef(new Animated.Value(1)).current;
 
@@ -33,13 +42,25 @@ function DetailsTransition({ children }: { children: React.ReactNode }) {
     }).start();
   }, [slideProgress]);
 
+  useEffect(() => {
+    if (!leaving) return;
+    Animated.timing(slideProgress, {
+      toValue: 1,
+      duration: 240,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) onExited();
+    });
+  }, [leaving]);
+
   const translateX = slideProgress.interpolate({
     inputRange: [0, 1],
     outputRange: [0, width],
   });
 
   return (
-    <Animated.View style={{ flex: 1, transform: [{ translateX }] }}>
+    <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateX }] }]}>
       {children}
     </Animated.View>
   );
@@ -50,6 +71,8 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [currentScreen, setCurrentScreen] = useState<Screen>('list');
   const [isReady, setIsReady] = useState(false);
+  // True while the details/timeline screen is sliding out over the list.
+  const [isLeaving, setIsLeaving] = useState(false);
 
   const selectedEntry = useMemo(
     () => entries.find((entry) => entry.id === selectedId) ?? null,
@@ -87,6 +110,16 @@ export default function App() {
     persistEntries();
   }, [entries, isReady]);
 
+  // Android hardware back: return to the list from other screens; on the list, fall through to exit.
+  useEffect(() => {
+    if (currentScreen === 'list') return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      goBackToList();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [currentScreen]);
+
   const addEntry = () => {
     const nextId = String(Date.now());
     const newEntry: DiaryEntry = {
@@ -101,7 +134,13 @@ export default function App() {
     setCurrentScreen('details');
   };
 
+  // Starts the slide-out; the screen actually switches in finishGoBack once it completes.
   const goBackToList = () => {
+    setIsLeaving(true);
+  };
+
+  const finishGoBack = () => {
+    setIsLeaving(false);
     setCurrentScreen('list');
     setSelectedId(null);
   };
@@ -155,12 +194,6 @@ export default function App() {
     );
   };
 
-  const handleListEntryUpdate = (id: string, patch: Partial<DiaryEntry>) => {
-    setEntries((prevEntries) =>
-      prevEntries.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry))
-    );
-  };
-
   const handlePhotoDelete = (photoId: string) => {
     setEntries((prevEntries) =>
       prevEntries.map((entry) =>
@@ -171,38 +204,46 @@ export default function App() {
     );
   };
 
-  if (currentScreen === 'timeline') {
-    return (
-      <DiaryPhotosTimeline
-        entries={entries}
-        onBack={goBackToList}
-      />
-    );
-  }
-
-  if (currentScreen === 'details' && selectedEntry) {
-    return (
-      <DetailsTransition>
-        <DiaryDetails
-          entry={selectedEntry}
-          onBack={goBackToList}
-          onPhotoSelect={handlePhotoSelect}
-          onPhotoUpdate={handlePhotoUpdate}
-          onPhotoDelete={handlePhotoDelete}
-          onEntryUpdate={handleEntryUpdate}
-        />
-      </DetailsTransition>
-    );
-  }
-
-  return (
+  const list = (
     <DiaryList
       entries={entries}
       onSelect={goToDetails}
       onAdd={addEntry}
       onDelete={handleDeleteEntry}
-      onEntryUpdate={handleListEntryUpdate}
     />
+  );
+
+  let overlay: React.ReactNode = null;
+  if (currentScreen === 'timeline') {
+    overlay = (
+      <DiaryPhotosTimeline
+        entries={entries}
+        onBack={goBackToList}
+      />
+    );
+  } else if (currentScreen === 'details' && selectedEntry) {
+    overlay = (
+      <DiaryDetails
+        entry={selectedEntry}
+        onBack={goBackToList}
+        onPhotoSelect={handlePhotoSelect}
+        onPhotoUpdate={handlePhotoUpdate}
+        onPhotoDelete={handlePhotoDelete}
+        onEntryUpdate={handleEntryUpdate}
+      />
+    );
+  }
+
+  if (!overlay) return list;
+
+  // The list is only mounted underneath while the overlay slides out, so it's revealed as it goes.
+  return (
+    <View style={{ flex: 1 }}>
+      {isLeaving && list}
+      <ScreenTransition leaving={isLeaving} onExited={finishGoBack}>
+        {overlay}
+      </ScreenTransition>
+    </View>
   );
 }
 
